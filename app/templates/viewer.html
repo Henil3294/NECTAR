@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Point Cloud</title>
+<style>
+  body { margin: 0; background: #000; }
+  canvas { display: block; }
+  #info {
+    position: fixed; top: 10px; left: 10px;
+    color: #fff; font: 12px monospace;
+    background: rgba(0,0,0,0.5);
+    padding: 8px; border-radius: 4px;
+    z-index: 10;
+  }
+</style>
+</head>
+<body>
+<div id="info">Loading...</div>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+const scene    = new THREE.Scene();
+const camera   = new THREE.PerspectiveCamera(60, innerWidth/innerHeight, 0.01, 10000);
+const renderer = new THREE.WebGLRenderer();
+renderer.setSize(innerWidth, innerHeight);
+document.body.appendChild(renderer.domElement);
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+
+fetch("/points/{{ project_id }}")
+  .then(r => r.json())
+  .then(data => {
+    const pos = new Float32Array(data.length * 3);
+    const col = new Float32Array(data.length * 3);
+
+    data.forEach((p, i) => {
+      pos[i*3]   = p.x; pos[i*3+1] = -p.y; pos[i*3+2] = -p.z;
+      col[i*3]   = p.r/255; col[i*3+1] = p.g/255; col[i*3+2] = p.b/255;
+    });
+
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute("position", new THREE.BufferAttribute(pos, 3));
+    geo.setAttribute("color",    new THREE.BufferAttribute(col, 3));
+    geo.computeBoundingBox();
+
+    // centre
+    const c = new THREE.Vector3();
+    geo.boundingBox.getCenter(c);
+    geo.translate(-c.x, -c.y, -c.z);
+    geo.computeBoundingBox();
+
+    const size = geo.boundingBox.getSize(new THREE.Vector3());
+    const diag = size.length();
+
+    const points = new THREE.Points(geo, new THREE.PointsMaterial({
+      size: diag * 0.003,
+      vertexColors: true
+    }));
+    scene.add(points);
+
+    // fit camera
+    camera.position.set(diag, diag * 0.5, diag);
+    camera.near = diag * 0.0001;
+    camera.far  = diag * 100;
+    camera.updateProjectionMatrix();
+    controls.update();
+
+    document.getElementById("info").textContent =
+      `${data.length.toLocaleString()} points | drag=orbit scroll=zoom`;
+  })
+  .catch(err => {
+    document.getElementById("info").textContent = "Error: " + err.message;
+  });
+
+window.addEventListener("resize", () => {
+  camera.aspect = innerWidth/innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+
+(function animate() {
+  requestAnimationFrame(animate);
+  controls.update();
+  renderer.render(scene, camera);
+})();
+</script>
+</body>
+</html>

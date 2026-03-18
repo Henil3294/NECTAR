@@ -1,0 +1,525 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reconstruction Status - NECTOR</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            max-width: 700px;
+            margin: 60px auto;
+            text-align: center;
+            color: #222;
+        }
+        .status-badge {
+            display: inline-block;
+            padding: 6px 16px;
+            border-radius: 20px;
+            font-weight: bold;
+            font-size: 14px;
+            margin: 12px 0;
+        }
+        .status-preprocessing { background: #fff3cd; color: #856404; }
+        .status-valid_images  { background: #cce5ff; color: #004085; }
+        .status-ready_for_training { background: #d4edda; color: #155724; }
+        .status-failed        { background: #f8d7da; color: #721c24; }
+        .status-training      { background: #cce5ff; color: #004085; }
+        .status-training_complete { background: #d4edda; color: #155724; }
+        .status-training_failed   { background: #f8d7da; color: #721c24; }
+        .spinner {
+            display: inline-block;
+            width: 24px; height: 24px;
+            border: 3px solid #ccc;
+            border-top-color: #333;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            vertical-align: middle;
+            margin-right: 8px;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .info { color: #555; font-size: 14px; margin: 8px 0; }
+        a.btn, button.btn {
+            display: inline-block;
+            margin-top: 12px;
+            padding: 10px 24px;
+            background: #007bff;
+            color: #fff;
+            text-decoration: none;
+            border-radius: 6px;
+            font-size: 16px;
+            border: none;
+            cursor: pointer;
+        }
+        a.btn:hover, button.btn:hover { background: #0056b3; }
+        button.btn:disabled { background: #999; cursor: not-allowed; }
+        .config-panel {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+            text-align: left;
+        }
+        .config-panel h3 { margin-top: 0; text-align: center; }
+        .config-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin: 12px 0;
+        }
+        .config-row label { font-weight: bold; font-size: 14px; }
+        .config-row input, .config-row select {
+            padding: 6px 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 14px;
+            width: 160px;
+        }
+        .progress-bar-container {
+            background: #e9ecef;
+            border-radius: 8px;
+            overflow: hidden;
+            height: 26px;
+            margin: 16px 0;
+        }
+        .progress-bar-fill {
+            height: 100%;
+            background: #007bff;
+            transition: width 0.5s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #fff;
+            font-size: 13px;
+            font-weight: bold;
+            min-width: 40px;
+        }
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin: 16px 0;
+        }
+        .metric-box {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 6px;
+            padding: 12px;
+        }
+        .metric-box .label { font-size: 12px; color: #666; text-transform: uppercase; }
+        .metric-box .value { font-size: 22px; font-weight: bold; color: #222; }
+        .log-panel {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            border-radius: 8px;
+            padding: 16px;
+            margin: 20px 0;
+            text-align: left;
+            max-height: 300px;
+            overflow-y: auto;
+            font-family: 'Consolas', 'Courier New', monospace;
+            font-size: 12px;
+            line-height: 1.5;
+        }
+        .log-panel .log-line {
+            white-space: pre-wrap;
+            word-break: break-all;
+            margin: 0;
+            padding: 1px 0;
+        }
+        .log-panel .log-line:nth-child(odd) {
+            background: rgba(255,255,255,0.03);
+        }
+        .log-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+        .log-header h4 {
+            margin: 0;
+            font-size: 14px;
+            color: #555;
+        }
+        .log-toggle {
+            font-size: 12px;
+            color: #007bff;
+            cursor: pointer;
+            background: none;
+            border: none;
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <h1>NECTOR</h1>
+    <h2>Reconstruction Status</h2>
+
+    <p class="info">Project: <code>{{ project.id }}</code></p>
+    <p class="info">Images: {{ project.valid_images }} valid</p>
+
+    <div id="status-area">
+        <span class="status-badge status-{{ project.status }}" id="badge">{{ project.status | replace('_', ' ') | title }}</span>
+    </div>
+
+    <!-- COLMAP Preprocessing Progress -->
+    <div id="progress" style="display:none;">
+        <span class="spinner"></span>
+        <span>Preprocessing with COLMAP&hellip;</span>
+        <p class="info" id="time-info"></p>
+    </div>
+
+    <!-- Training Config Panel (shown when ready_for_training) -->
+    <div id="config-area" style="display:none;">
+        <p>COLMAP reconstruction complete! Configure and start NeRF training.</p>
+        <div class="config-panel">
+            <h3>Training Configuration</h3>
+            <div class="config-row">
+                <label for="iterations">Max Iterations</label>
+                <input type="number" id="iterations" value="15000" min="5000" max="100000" step="5000">
+            </div>
+            <div class="config-row">
+                <label for="max-resolution">Max Resolution</label>
+                <select id="max-resolution">
+                    <option value="512">512px</option>
+                    <option value="1024" selected>1024px</option>
+                    <option value="2048">2048px</option>
+                </select>
+            </div>
+            <div style="text-align:center;">
+                <button class="btn" id="start-train-btn" onclick="startTraining()">Start Training</button>
+            </div>
+        </div>
+        <a class="btn" href="/viewer/{{ project.id }}" style="background:#28a745;">View Point Cloud</a>
+    </div>
+
+    <!-- Training Progress (shown during training) -->
+    <div id="training-progress" style="display:none;">
+        <span class="spinner"></span>
+        <span>Training Nerfacto&hellip;</span>
+        <div class="progress-bar-container">
+            <div class="progress-bar-fill" id="train-bar" style="width:0%;">0%</div>
+        </div>
+        <div class="metrics-grid">
+            <div class="metric-box">
+                <div class="label">Step</div>
+                <div class="value" id="metric-step">0 / 30000</div>
+            </div>
+            <div class="metric-box">
+                <div class="label">PSNR</div>
+                <div class="value" id="metric-psnr">&mdash;</div>
+            </div>
+            <div class="metric-box">
+                <div class="label">ETA</div>
+                <div class="value" id="metric-eta">&mdash;</div>
+            </div>
+            <div class="metric-box">
+                <div class="label">Elapsed</div>
+                <div class="value" id="metric-elapsed">&mdash;</div>
+            </div>
+        </div>
+        <div class="log-header">
+            <h4>Training Logs</h4>
+            <button class="log-toggle" id="log-toggle-btn" onclick="toggleLogs()">Hide</button>
+        </div>
+        <div class="log-panel" id="log-panel"></div>
+    </div>
+
+    <!-- Training Complete -->
+    <div id="train-done-area" style="display:none;">
+        <p style="color:#155724; font-size:18px; font-weight:bold;">&#10003; Training Complete!</p>
+        <p class="info">Your NeRF model is ready.</p>
+        <a class="btn" href="/viewer/{{ project.id }}" style="background:#28a745;">View Reconstruction</a>
+        <br>
+        <button class="btn" style="background:#6c757d; margin-top:8px;" onclick="showRetrain()">Retrain with Different Settings</button>
+    </div>
+
+    <!-- Training Failed -->
+    <div id="train-fail-area" style="display:none;">
+        <p style="color:#c00;">Training failed.</p>
+        <div class="log-header">
+            <h4>Error Logs</h4>
+        </div>
+        <div class="log-panel" id="fail-log-panel"></div>
+        <button class="btn" onclick="showRetrain()">Retry Training</button>
+        <a class="btn" href="/" style="background:#6c757d;">Back to Upload</a>
+    </div>
+
+    <!-- COLMAP Failed -->
+    <div id="fail-area" style="display:none;">
+        <p style="color:#c00;">Reconstruction failed. Please try uploading again.</p>
+        <a class="btn" href="/">Back to Upload</a>
+    </div>
+
+    <script>
+    const STATUS_LABELS = {
+        valid_images: 'Queued',
+        preprocessing: 'Preprocessing',
+        ready_for_training: 'Ready for Training',
+        training: 'Training',
+        training_complete: 'Training Complete',
+        training_failed: 'Training Failed',
+        failed: 'Failed'
+    };
+
+    const projectId = '{{ project.id }}';
+    let trainingStartedAt = null;
+
+    function formatTime(sec) {
+        sec = Math.max(0, Math.round(sec));
+        const h = Math.floor(sec / 3600);
+        const m = Math.floor((sec % 3600) / 60);
+        const s = sec % 60;
+        if (h > 0) return h + 'h ' + m + 'm';
+        return m > 0 ? m + 'm ' + s + 's' : s + 's';
+    }
+
+    function updateUI(status) {
+        const badge = document.getElementById('badge');
+        badge.className = 'status-badge status-' + status;
+        badge.textContent = STATUS_LABELS[status] || status;
+
+        // Hide all sections
+        document.getElementById('progress').style.display = 'none';
+        document.getElementById('config-area').style.display = 'none';
+        document.getElementById('training-progress').style.display = 'none';
+        document.getElementById('train-done-area').style.display = 'none';
+        document.getElementById('train-fail-area').style.display = 'none';
+        document.getElementById('fail-area').style.display = 'none';
+
+        // Show relevant section
+        if (status === 'valid_images' || status === 'preprocessing') {
+            document.getElementById('progress').style.display = '';
+            stopLogPoll();
+        } else if (status === 'ready_for_training') {
+            document.getElementById('config-area').style.display = '';
+            stopLogPoll();
+        } else if (status === 'training') {
+            document.getElementById('training-progress').style.display = '';
+            startLogPoll();
+        } else if (status === 'training_complete') {
+            document.getElementById('train-done-area').style.display = '';
+            stopLogPoll();
+        } else if (status === 'training_failed') {
+            document.getElementById('train-fail-area').style.display = '';
+            stopLogPoll();
+            pollLogs(); // Load final logs once
+        } else if (status === 'failed') {
+            document.getElementById('fail-area').style.display = '';
+            stopLogPoll();
+        }
+    }
+
+    function showRetrain() {
+        document.getElementById('train-done-area').style.display = 'none';
+        document.getElementById('train-fail-area').style.display = 'none';
+        document.getElementById('config-area').style.display = '';
+    }
+
+    function startTraining() {
+        const btn = document.getElementById('start-train-btn');
+        btn.disabled = true;
+        btn.textContent = 'Starting...';
+
+        const iterations = parseInt(document.getElementById('iterations').value);
+        const maxRes = parseInt(document.getElementById('max-resolution').value);
+
+        fetch('/api/train/' + projectId, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ iterations: iterations, max_resolution: maxRes })
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.status === 'training') {
+                trainingStartedAt = new Date();
+                updateUI('training');
+                startTrainingPoll();
+            } else {
+                btn.disabled = false;
+                btn.textContent = 'Start Training';
+                alert(data.error || 'Failed to start training');
+            }
+        })
+        .catch(() => {
+            btn.disabled = false;
+            btn.textContent = 'Start Training';
+        });
+    }
+
+    // --- COLMAP progress polling ---
+    const SEC_PER_IMAGE = 3;
+    const imageCount = parseInt('{{ project.valid_images }}');
+    const estimatedTotalSec = imageCount * SEC_PER_IMAGE;
+    let processingStartedAt = null;
+
+    function updateTimeInfo() {
+        const el = document.getElementById('time-info');
+        if (!processingStartedAt || !el) return;
+        const elapsed = (Date.now() - processingStartedAt.getTime()) / 1000;
+        const remaining = Math.max(0, estimatedTotalSec - elapsed);
+        el.textContent = 'Elapsed: ' + formatTime(elapsed)
+            + ' | Est. remaining: ~' + formatTime(remaining);
+    }
+
+    setInterval(updateTimeInfo, 1000);
+
+    // --- Training progress polling ---
+    let trainingPollId = null;
+
+    function updateTrainingElapsed() {
+        if (!trainingStartedAt) return;
+        const el = document.getElementById('metric-elapsed');
+        if (el) {
+            const sec = (Date.now() - trainingStartedAt.getTime()) / 1000;
+            el.textContent = formatTime(sec);
+        }
+    }
+
+    setInterval(updateTrainingElapsed, 1000);
+
+    function startTrainingPoll() {
+        if (trainingPollId) clearInterval(trainingPollId);
+        trainingPollId = setInterval(pollTrainingProgress, 2000);
+    }
+
+    function pollTrainingProgress() {
+        fetch('/api/training-progress/' + projectId)
+            .then(r => r.json())
+            .then(data => {
+                if (data.status !== 'training') {
+                    clearInterval(trainingPollId);
+                    updateUI(data.status);
+                    return;
+                }
+
+                const p = data.progress;
+                if (p) {
+                    const pct = p.percent_done ? p.percent_done.toFixed(1) : '0';
+                    const bar = document.getElementById('train-bar');
+                    bar.style.width = Math.max(parseFloat(pct), 1) + '%';
+                    bar.textContent = pct + '%';
+
+                    const total = p.total_steps || 30000;
+                    document.getElementById('metric-step').textContent =
+                        (p.current_step || 0) + ' / ' + total;
+
+                    if (p.psnr !== undefined && p.psnr !== null) {
+                        document.getElementById('metric-psnr').textContent =
+                            p.psnr.toFixed(2) + ' dB';
+                    } else {
+                        document.getElementById('metric-psnr').textContent = 'Waiting\u2026';
+                    }
+
+                    if (p.eta_seconds !== undefined && p.eta_seconds !== null) {
+                        document.getElementById('metric-eta').textContent =
+                            formatTime(p.eta_seconds);
+                    } else {
+                        document.getElementById('metric-eta').textContent = 'Calculating\u2026';
+                    }
+                } else {
+                    // No progress file yet — training is initializing
+                    document.getElementById('metric-step').textContent = 'Initializing\u2026';
+                    document.getElementById('metric-psnr').textContent = 'Waiting\u2026';
+                    document.getElementById('metric-eta').textContent = 'Calculating\u2026';
+                }
+            })
+            .catch(() => {
+                // Network error — keep polling
+            });
+    }
+
+    // --- Log polling ---
+    let logPollId = null;
+    let logVisible = true;
+
+    function toggleLogs() {
+        const panel = document.getElementById('log-panel');
+        const btn = document.getElementById('log-toggle-btn');
+        logVisible = !logVisible;
+        panel.style.display = logVisible ? '' : 'none';
+        btn.textContent = logVisible ? 'Hide' : 'Show';
+    }
+
+    function startLogPoll() {
+        if (logPollId) clearInterval(logPollId);
+        pollLogs();
+        logPollId = setInterval(pollLogs, 3000);
+    }
+
+    function stopLogPoll() {
+        if (logPollId) { clearInterval(logPollId); logPollId = null; }
+    }
+
+    function pollLogs() {
+        fetch('/api/logs/' + projectId)
+            .then(r => r.json())
+            .then(data => {
+                const lines = data.lines || [];
+                const panel = document.getElementById('log-panel');
+                if (!panel) return;
+
+                // Check if user scrolled up
+                const atBottom = panel.scrollHeight - panel.scrollTop - panel.clientHeight < 40;
+
+                panel.innerHTML = lines.map(l => {
+                    const escaped = l.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+                    return '<div class="log-line">' + escaped + '</div>';
+                }).join('');
+
+                // Auto-scroll to bottom if user was at bottom
+                if (atBottom) panel.scrollTop = panel.scrollHeight;
+
+                // Also update fail log panel if visible
+                const failPanel = document.getElementById('fail-log-panel');
+                if (failPanel && data.status === 'training_failed') {
+                    failPanel.innerHTML = panel.innerHTML;
+                    failPanel.scrollTop = failPanel.scrollHeight;
+                }
+            })
+            .catch(() => {});
+    }
+
+    // --- Main status polling ---
+    let statusPollId = null;
+
+    function pollStatus() {
+        fetch('/api/status/' + projectId)
+            .then(r => r.json())
+            .then(data => {
+                updateUI(data.status);
+
+                if (data.processing_started_at && !processingStartedAt) {
+                    processingStartedAt = new Date(data.processing_started_at);
+                }
+
+                if (data.training_started_at && !trainingStartedAt) {
+                    trainingStartedAt = new Date(data.training_started_at);
+                }
+
+                // Transition: if status just became 'training', start training poll
+                if (data.status === 'training') {
+                    if (!trainingPollId) startTrainingPoll();
+                    clearInterval(statusPollId);
+                }
+
+                // Terminal states for status poll
+                if (['ready_for_training', 'training_complete', 'training_failed', 'failed'].includes(data.status)) {
+                    clearInterval(statusPollId);
+                }
+            });
+    }
+
+    // Initialize
+    updateUI('{{ project.status }}');
+
+    const initStatus = '{{ project.status }}';
+    if (initStatus === 'training') {
+        startTrainingPoll();
+    } else if (!['ready_for_training', 'training_complete', 'training_failed', 'failed'].includes(initStatus)) {
+        statusPollId = setInterval(pollStatus, 3000);
+    }
+    </script>
+</body>
+</html>
