@@ -3,523 +3,280 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Reconstruction Status - NECTOR</title>
+    <title>NECTAR | Mission Control</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
     <style>
-        body {
-            font-family: sans-serif;
-            max-width: 700px;
-            margin: 60px auto;
-            text-align: center;
-            color: #222;
+        .dashboard-grid { display: grid; grid-template-columns: 1fr; gap: 20px; }
+        .split-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        .panel { background: #0a0c10; border: 1px solid var(--border-subtle); border-radius: 4px; padding: 20px; }
+        
+        /* --- THE RED BOX: LIQUID WAVE LOADER --- */
+        .loader-container { display: flex; align-items: center; justify-content: flex-start; gap: 40px; }
+        .liquid-loader {
+            position: relative; width: 120px; height: 120px; border-radius: 50%;
+            border: 3px solid rgba(0, 229, 255, 0.3); overflow: hidden; background: #050505;
+            box-shadow: 0 0 20px rgba(0, 229, 255, 0.1); flex-shrink: 0;
         }
-        .status-badge {
-            display: inline-block;
-            padding: 6px 16px;
-            border-radius: 20px;
-            font-weight: bold;
-            font-size: 14px;
-            margin: 12px 0;
+        /* The Waves */
+        .wave {
+            position: absolute; width: 200%; height: 200%;
+            background: rgba(0, 229, 255, 0.4);
+            left: -50%; border-radius: 40%;
+            animation: spin 5s linear infinite;
+            transition: top 0.5s ease;
+            top: 100%; /* Starts empty */
         }
-        .status-preprocessing { background: #fff3cd; color: #856404; }
-        .status-valid_images  { background: #cce5ff; color: #004085; }
-        .status-ready_for_training { background: #d4edda; color: #155724; }
-        .status-failed        { background: #f8d7da; color: #721c24; }
-        .status-training      { background: #cce5ff; color: #004085; }
-        .status-training_complete { background: #d4edda; color: #155724; }
-        .status-training_failed   { background: #f8d7da; color: #721c24; }
-        .spinner {
-            display: inline-block;
-            width: 24px; height: 24px;
-            border: 3px solid #ccc;
-            border-top-color: #333;
-            border-radius: 50%;
-            animation: spin 0.8s linear infinite;
-            vertical-align: middle;
-            margin-right: 8px;
+        .wave:nth-child(2) {
+            background: rgba(0, 229, 255, 0.8); border-radius: 45%; animation: spin 4s linear infinite;
         }
-        @keyframes spin { to { transform: rotate(360deg); } }
-        .info { color: #555; font-size: 14px; margin: 8px 0; }
-        a.btn, button.btn {
-            display: inline-block;
-            margin-top: 12px;
-            padding: 10px 24px;
-            background: #007bff;
-            color: #fff;
-            text-decoration: none;
-            border-radius: 6px;
-            font-size: 16px;
-            border: none;
-            cursor: pointer;
+        .progress-text {
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            color: #fff; font-family: 'JetBrains Mono'; font-size: 1.5rem; font-weight: bold; z-index: 10;
         }
-        a.btn:hover, button.btn:hover { background: #0056b3; }
-        button.btn:disabled { background: #999; cursor: not-allowed; }
-        .config-panel {
-            background: #f8f9fa;
-            border: 1px solid #dee2e6;
-            border-radius: 8px;
-            padding: 20px;
-            margin: 20px 0;
-            text-align: left;
-        }
-        .config-panel h3 { margin-top: 0; text-align: center; }
-        .config-row {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            margin: 12px 0;
-        }
-        .config-row label { font-weight: bold; font-size: 14px; }
-        .config-row input, .config-row select {
-            padding: 6px 10px;
-            border: 1px solid #ccc;
-            border-radius: 4px;
-            font-size: 14px;
-            width: 160px;
-        }
-        .progress-bar-container {
-            background: #e9ecef;
-            border-radius: 8px;
-            overflow: hidden;
-            height: 26px;
-            margin: 16px 0;
-        }
-        .progress-bar-fill {
-            height: 100%;
-            background: #007bff;
-            transition: width 0.5s ease;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: #fff;
-            font-size: 13px;
-            font-weight: bold;
-            min-width: 40px;
-        }
-        .metrics-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 10px;
-            margin: 16px 0;
-        }
-        .metric-box {
-            background: #f8f9fa;
-            border: 1px solid #dee2e6;
-            border-radius: 6px;
-            padding: 12px;
-        }
-        .metric-box .label { font-size: 12px; color: #666; text-transform: uppercase; }
-        .metric-box .value { font-size: 22px; font-weight: bold; color: #222; }
-        .log-panel {
-            background: #1e1e1e;
-            color: #d4d4d4;
-            border-radius: 8px;
-            padding: 16px;
-            margin: 20px 0;
-            text-align: left;
-            max-height: 300px;
-            overflow-y: auto;
-            font-family: 'Consolas', 'Courier New', monospace;
-            font-size: 12px;
-            line-height: 1.5;
-        }
-        .log-panel .log-line {
-            white-space: pre-wrap;
-            word-break: break-all;
-            margin: 0;
-            padding: 1px 0;
-        }
-        .log-panel .log-line:nth-child(odd) {
-            background: rgba(255,255,255,0.03);
-        }
-        .log-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 8px;
-        }
-        .log-header h4 {
-            margin: 0;
-            font-size: 14px;
-            color: #555;
-        }
-        .log-toggle {
-            font-size: 12px;
-            color: #007bff;
-            cursor: pointer;
-            background: none;
-            border: none;
-            text-decoration: underline;
-        }
+        @keyframes spin { 100% { transform: rotate(360deg); } }
+
+        /* --- THE GREEN BOX: HARDWARE & LOGS --- */
+        .hw-box { background: rgba(255, 255, 255, 0.02); padding: 10px; border: 1px solid var(--border-subtle); margin-bottom: 10px; }
+        .hw-title { font-family: 'JetBrains Mono'; font-size: 0.65rem; color: var(--text-dim); display: flex; justify-content: space-between; margin-bottom: 5px;}
+        .hw-canvas { width: 100%; height: 35px; display: block; }
+        .ram-bar-bg { background: #111; height: 10px; width: 100%; margin-top: 5px; border-radius: 2px; overflow: hidden;}
+        .ram-bar-fill { background: var(--accent-blue); height: 100%; width: 0%; transition: width 0.5s; box-shadow: 0 0 10px var(--accent-blue-glow);}
+        
+        .log-panel { background: #050505; border: 1px solid var(--border-subtle); color: #00e5ff; height: 250px; overflow-y: auto; font-family: 'JetBrains Mono', monospace; font-size: 0.75rem; line-height: 1.5; padding: 10px; }
     </style>
 </head>
 <body>
-    <h1>NECTOR</h1>
-    <h2>Reconstruction Status</h2>
 
-    <p class="info">Project: <code>{{ project.id }}</code></p>
-    <p class="info">Images: {{ project.valid_images }} valid</p>
+    <header>
+        <div class="main-logo flicker-active repair-mode" id="nectar-logo">NECTAR</div>
+        <div class="tagline">Neural Extraction and Construction of Three-dimensional Artefact Representations</div>
+    </header>
 
-    <div id="status-area">
-        <span class="status-badge status-{{ project.status }}" id="badge">{{ project.status | replace('_', ' ') | title }}</span>
-    </div>
+    <div class="container">
+        <div class="panel" style="margin-bottom: 20px; text-align: center; padding: 15px;">
+            <div style="font-family: 'JetBrains Mono'; color: #fff;">PROJECT: <span style="color: var(--accent-blue);">{{ project.id }}</span></div>
+            <div style="font-size: 0.8rem; color: var(--text-dim); margin-top: 5px;" id="status-badge">Establishing Pipeline...</div>
+        </div>
 
-    <!-- COLMAP Preprocessing Progress -->
-    <div id="progress" style="display:none;">
-        <span class="spinner"></span>
-        <span>Preprocessing with COLMAP&hellip;</span>
-        <p class="info" id="time-info"></p>
-    </div>
-
-    <!-- Training Config Panel (shown when ready_for_training) -->
-    <div id="config-area" style="display:none;">
-        <p>COLMAP reconstruction complete! Configure and start NeRF training.</p>
-        <div class="config-panel">
-            <h3>Training Configuration</h3>
-            <div class="config-row">
-                <label for="iterations">Max Iterations</label>
-                <input type="number" id="iterations" value="15000" min="5000" max="100000" step="5000">
+        <div class="dashboard-grid">
+            
+            <div class="panel" style="border-color: rgba(0, 229, 255, 0.5);">
+                <div class="loader-container">
+                    <div class="liquid-loader">
+                        <div class="wave" id="wave1"></div>
+                        <div class="wave" id="wave2"></div>
+                        <div class="progress-text"><span id="wave-pct">0</span>%</div>
+                    </div>
+                    <div style="flex-grow: 1;">
+                        <h3 style="color: #fff; margin-bottom: 5px; font-size: 1.2rem;" id="main-phase">INITIALIZING PIPELINE</h3>
+                        <p style="color: var(--text-dim); font-size: 0.8rem; font-family: 'JetBrains Mono';" id="sub-phase">Awaiting data...</p>
+                        
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 15px;" id="training-metrics-area">
+                            <div class="hw-box" style="margin: 0;"><div class="hw-title">STEP</div><div style="color: #fff; font-family: 'JetBrains Mono'; font-size: 1.1rem;" id="metric-step">--</div></div>
+                            <div class="hw-box" style="margin: 0;"><div class="hw-title">PSNR</div><div style="color: #fff; font-family: 'JetBrains Mono'; font-size: 1.1rem;" id="metric-psnr">--</div></div>
+                        </div>
+                    </div>
+                </div>
+                <div id="done-action" style="display: none; text-align: center; margin-top: 20px; border-top: 1px solid var(--border-subtle); padding-top: 20px;">
+                    <a href="/viewer/{{ project.id }}" class="btn-action" style="display: inline-block; padding: 12px 40px; font-size: 1.1rem;">LAUNCH 3D VIEWER</a>
+                </div>
             </div>
-            <div class="config-row">
-                <label for="max-resolution">Max Resolution</label>
-                <select id="max-resolution">
-                    <option value="512">512px</option>
-                    <option value="1024" selected>1024px</option>
-                    <option value="2048">2048px</option>
-                </select>
-            </div>
-            <div style="text-align:center;">
-                <button class="btn" id="start-train-btn" onclick="startTraining()">Start Training</button>
+
+            <div class="split-grid">
+                
+                <div class="panel">
+                    <div style="font-family: 'JetBrains Mono'; font-size: 0.75rem; color: var(--text-dim); margin-bottom: 15px;">REAL-TIME TELEMETRY</div>
+                    
+                    <div class="hw-box">
+                        <div class="hw-title"><span>CPU LOAD</span><span id="cpu-val">0%</span></div>
+                        <canvas id="cpuChart" class="hw-canvas"></canvas>
+                    </div>
+                    <div class="hw-box">
+                        <div class="hw-title"><span>GPU LOAD (NVIDIA)</span><span id="gpu-val">0%</span></div>
+                        <canvas id="gpuChart" class="hw-canvas"></canvas>
+                    </div>
+                    <div class="hw-box">
+                        <div class="hw-title"><span>GPU VRAM (GTX 1650 4GB)</span><span id="vram-val">0GB / 4GB</span></div>
+                        <div class="ram-bar-bg"><div class="ram-bar-fill" id="vram-fill"></div></div>
+                    </div>
+                </div>
+
+                <div class="panel">
+                    <div style="font-family: 'JetBrains Mono'; font-size: 0.75rem; color: var(--text-dim); margin-bottom: 15px; display: flex; justify-content: space-between;">
+                        <span>SYSTEM CONSOLE</span>
+                        <span id="log-status" style="color: var(--accent-blue); animation: pulse 2s infinite;">Live •</span>
+                    </div>
+                    <div class="log-panel" id="log-panel">
+                        <div>[SYS] Connection Established to Backend API.</div>
+                    </div>
+                </div>
+
             </div>
         </div>
-        <a class="btn" href="/viewer/{{ project.id }}" style="background:#28a745;">View Point Cloud</a>
     </div>
-
-    <!-- Training Progress (shown during training) -->
-    <div id="training-progress" style="display:none;">
-        <span class="spinner"></span>
-        <span>Training Nerfacto&hellip;</span>
-        <div class="progress-bar-container">
-            <div class="progress-bar-fill" id="train-bar" style="width:0%;">0%</div>
-        </div>
-        <div class="metrics-grid">
-            <div class="metric-box">
-                <div class="label">Step</div>
-                <div class="value" id="metric-step">0 / 30000</div>
-            </div>
-            <div class="metric-box">
-                <div class="label">PSNR</div>
-                <div class="value" id="metric-psnr">&mdash;</div>
-            </div>
-            <div class="metric-box">
-                <div class="label">ETA</div>
-                <div class="value" id="metric-eta">&mdash;</div>
-            </div>
-            <div class="metric-box">
-                <div class="label">Elapsed</div>
-                <div class="value" id="metric-elapsed">&mdash;</div>
-            </div>
-        </div>
-        <div class="log-header">
-            <h4>Training Logs</h4>
-            <button class="log-toggle" id="log-toggle-btn" onclick="toggleLogs()">Hide</button>
-        </div>
-        <div class="log-panel" id="log-panel"></div>
-    </div>
-
-    <!-- Training Complete -->
-    <div id="train-done-area" style="display:none;">
-        <p style="color:#155724; font-size:18px; font-weight:bold;">&#10003; Training Complete!</p>
-        <p class="info">Your NeRF model is ready.</p>
-        <a class="btn" href="/viewer/{{ project.id }}" style="background:#28a745;">View Reconstruction</a>
-        <br>
-        <button class="btn" style="background:#6c757d; margin-top:8px;" onclick="showRetrain()">Retrain with Different Settings</button>
-    </div>
-
-    <!-- Training Failed -->
-    <div id="train-fail-area" style="display:none;">
-        <p style="color:#c00;">Training failed.</p>
-        <div class="log-header">
-            <h4>Error Logs</h4>
-        </div>
-        <div class="log-panel" id="fail-log-panel"></div>
-        <button class="btn" onclick="showRetrain()">Retry Training</button>
-        <a class="btn" href="/" style="background:#6c757d;">Back to Upload</a>
-    </div>
-
-    <!-- COLMAP Failed -->
-    <div id="fail-area" style="display:none;">
-        <p style="color:#c00;">Reconstruction failed. Please try uploading again.</p>
-        <a class="btn" href="/">Back to Upload</a>
-    </div>
-
-    <script>
-    const STATUS_LABELS = {
-        valid_images: 'Queued',
-        preprocessing: 'Preprocessing',
-        ready_for_training: 'Ready for Training',
-        training: 'Training',
-        training_complete: 'Training Complete',
-        training_failed: 'Training Failed',
-        failed: 'Failed'
-    };
-
+<script>
     const projectId = '{{ project.id }}';
-    let trainingStartedAt = null;
 
-    function formatTime(sec) {
-        sec = Math.max(0, Math.round(sec));
-        const h = Math.floor(sec / 3600);
-        const m = Math.floor((sec % 3600) / 60);
-        const s = sec % 60;
-        if (h > 0) return h + 'h ' + m + 'm';
-        return m > 0 ? m + 'm ' + s + 's' : s + 's';
-    }
+        // --- 1. STRICT WAVE UPDATER ---
+        // Only moves when fed a real number from the backend
+function updateWaveProgress(percent) {
+            if(percent > 100) percent = 100;
+            let topValue = 100 - percent;
+            
+            // 1. Move the Waves
+            document.getElementById('wave1').style.top = topValue + '%';
+            document.getElementById('wave2').style.top = topValue + '%';
+            document.getElementById('wave-pct').innerText = percent.toFixed(0);
 
-    function updateUI(status) {
-        const badge = document.getElementById('badge');
-        badge.className = 'status-badge status-' + status;
-        badge.textContent = STATUS_LABELS[status] || status;
+            // 2. --- THE "N to R" FILLING LOGIC ---
+            const logo = document.getElementById('nectar-logo');
+            if (logo) {
+                // This line feeds the percentage to the CSS variable for the 'fill'
+                logo.style.setProperty('--fill-width', percent + '%');
 
-        // Hide all sections
-        document.getElementById('progress').style.display = 'none';
-        document.getElementById('config-area').style.display = 'none';
-        document.getElementById('training-progress').style.display = 'none';
-        document.getElementById('train-done-area').style.display = 'none';
-        document.getElementById('train-fail-area').style.display = 'none';
-        document.getElementById('fail-area').style.display = 'none';
+                // Adjust flicker speed as it "recharges"
+                if (percent > 0 && percent < 98) {
+                    logo.style.animationDuration = (3 + (percent / 10)) + 's'; 
+                }
 
-        // Show relevant section
-        if (status === 'valid_images' || status === 'preprocessing') {
-            document.getElementById('progress').style.display = '';
-            stopLogPoll();
-        } else if (status === 'ready_for_training') {
-            document.getElementById('config-area').style.display = '';
-            stopLogPoll();
-        } else if (status === 'training') {
-            document.getElementById('training-progress').style.display = '';
-            startLogPoll();
-        } else if (status === 'training_complete') {
-            document.getElementById('train-done-area').style.display = '';
-            stopLogPoll();
-        } else if (status === 'training_failed') {
-            document.getElementById('train-fail-area').style.display = '';
-            stopLogPoll();
-            pollLogs(); // Load final logs once
-        } else if (status === 'failed') {
-            document.getElementById('fail-area').style.display = '';
-            stopLogPoll();
-        }
-    }
-
-    function showRetrain() {
-        document.getElementById('train-done-area').style.display = 'none';
-        document.getElementById('train-fail-area').style.display = 'none';
-        document.getElementById('config-area').style.display = '';
-    }
-
-    function startTraining() {
-        const btn = document.getElementById('start-train-btn');
-        btn.disabled = true;
-        btn.textContent = 'Starting...';
-
-        const iterations = parseInt(document.getElementById('iterations').value);
-        const maxRes = parseInt(document.getElementById('max-resolution').value);
-
-        fetch('/api/train/' + projectId, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ iterations: iterations, max_resolution: maxRes })
-        })
-        .then(r => r.json())
-        .then(data => {
-            if (data.status === 'training') {
-                trainingStartedAt = new Date();
-                updateUI('training');
-                startTrainingPoll();
-            } else {
-                btn.disabled = false;
-                btn.textContent = 'Start Training';
-                alert(data.error || 'Failed to start training');
+                // Handle the final "Solid" state
+                if (percent >= 98) {
+                    logo.classList.remove('flicker-active');
+                    // Slightly brighten the background letters for a "Powered" feel
+                    logo.style.color = "rgba(255, 255, 255, 0.1)"; 
+                }
             }
-        })
-        .catch(() => {
-            btn.disabled = false;
-            btn.textContent = 'Start Training';
-        });
-    }
-
-    // --- COLMAP progress polling ---
-    const SEC_PER_IMAGE = 3;
-    const imageCount = parseInt('{{ project.valid_images }}');
-    const estimatedTotalSec = imageCount * SEC_PER_IMAGE;
-    let processingStartedAt = null;
-
-    function updateTimeInfo() {
-        const el = document.getElementById('time-info');
-        if (!processingStartedAt || !el) return;
-        const elapsed = (Date.now() - processingStartedAt.getTime()) / 1000;
-        const remaining = Math.max(0, estimatedTotalSec - elapsed);
-        el.textContent = 'Elapsed: ' + formatTime(elapsed)
-            + ' | Est. remaining: ~' + formatTime(remaining);
-    }
-
-    setInterval(updateTimeInfo, 1000);
-
-    // --- Training progress polling ---
-    let trainingPollId = null;
-
-    function updateTrainingElapsed() {
-        if (!trainingStartedAt) return;
-        const el = document.getElementById('metric-elapsed');
-        if (el) {
-            const sec = (Date.now() - trainingStartedAt.getTime()) / 1000;
-            el.textContent = formatTime(sec);
         }
-    }
 
-    setInterval(updateTrainingElapsed, 1000);
-
-    function startTrainingPoll() {
-        if (trainingPollId) clearInterval(trainingPollId);
-        trainingPollId = setInterval(pollTrainingProgress, 2000);
-    }
-
-    function pollTrainingProgress() {
-        fetch('/api/training-progress/' + projectId)
-            .then(r => r.json())
-            .then(data => {
-                if (data.status !== 'training') {
-                    clearInterval(trainingPollId);
-                    updateUI(data.status);
-                    return;
-                }
-
-                const p = data.progress;
-                if (p) {
-                    const pct = p.percent_done ? p.percent_done.toFixed(1) : '0';
-                    const bar = document.getElementById('train-bar');
-                    bar.style.width = Math.max(parseFloat(pct), 1) + '%';
-                    bar.textContent = pct + '%';
-
-                    const total = p.total_steps || 30000;
-                    document.getElementById('metric-step').textContent =
-                        (p.current_step || 0) + ' / ' + total;
-
-                    if (p.psnr !== undefined && p.psnr !== null) {
-                        document.getElementById('metric-psnr').textContent =
-                            p.psnr.toFixed(2) + ' dB';
+        // --- 2. ROBUST SYSTEM LOGS ---
+        function pollLogs() {
+            fetch('/api/logs/' + projectId)
+                .then(r => r.json())
+                .then(data => {
+                    const panel = document.getElementById('log-panel');
+                    if (data.lines && data.lines.length > 0) {
+                        panel.innerHTML = data.lines.map(l => `<div>${l}</div>`).join('');
+                        panel.scrollTop = panel.scrollHeight; 
                     } else {
-                        document.getElementById('metric-psnr').textContent = 'Waiting\u2026';
+                        panel.innerHTML = `
+                            <div>[SYS] Connection Established.</div>
+                            <div style="color: var(--text-dim);">[SYS] Awaiting compiler logs from training.log...</div>
+                        `;
                     }
+                }).catch(e => console.log("Waiting for logs..."));
+        }
 
-                    if (p.eta_seconds !== undefined && p.eta_seconds !== null) {
-                        document.getElementById('metric-eta').textContent =
-                            formatTime(p.eta_seconds);
-                    } else {
-                        document.getElementById('metric-eta').textContent = 'Calculating\u2026';
+        // --- 3. OVERALL STATUS POLLING ---
+        function pollMainStatus() {
+            fetch('/api/status/' + projectId)
+                .then(r => r.json())
+                .then(data => {
+                    document.getElementById('status-badge').innerText = "Status: " + data.status.toUpperCase();
+
+                    if (data.status === 'preprocessing') {
+                        document.getElementById('main-phase').innerText = "STAGE 1: COLMAP SFM";
+                        document.getElementById('sub-phase').innerText = "Extracting features & matching (Waiting on backend...)";
+                        updateWaveProgress(0);
+
+                    } else if (data.status === 'training') {
+                        document.getElementById('main-phase').innerText = "STAGE 2: GAUSSIAN SPLATTING";
+                        document.getElementById('sub-phase').innerText = "Optimizing Radiance Field on CUDA...";
+                        pollTrainingProgress();
+
+                    } else if (data.status === 'training_complete' || data.status === 'ready_for_training') {
+                        document.getElementById('main-phase').innerText = "COMPILATION COMPLETE";
+                        document.getElementById('sub-phase').innerText = "3D Scene has been successfully synthesized.";
+                        document.getElementById('main-phase').style.color = "#00e5ff";
+
+                        // --- FINAL REPAIR LOCK ---
+                        const logo = document.getElementById('nectar-logo');
+                        if (logo) {
+                            logo.classList.remove('flicker-active');
+                            // Lock the fill at 100%
+                            logo.style.setProperty('--fill-width', '100%');
+                            // Add the final "Finished" glow
+                            logo.style.textShadow = "0 0 30px #00e5ff, 0 0 60px rgba(0, 229, 255, 0.5)";
+                            logo.style.color = "#fff"; 
+                        }
+
+                        updateWaveProgress(100);
+                        document.getElementById('done-action').style.display = "block";
+                        pollTrainingProgress(); 
                     }
-                } else {
-                    // No progress file yet — training is initializing
-                    document.getElementById('metric-step').textContent = 'Initializing\u2026';
-                    document.getElementById('metric-psnr').textContent = 'Waiting\u2026';
-                    document.getElementById('metric-eta').textContent = 'Calculating\u2026';
-                }
-            })
-            .catch(() => {
-                // Network error — keep polling
-            });
-    }
+                });
+        }
 
-    // --- Log polling ---
-    let logPollId = null;
-    let logVisible = true;
+        // --- 4. EXACT TRAINING METRICS ---
+        function pollTrainingProgress() {
+            fetch('/api/training-progress/' + projectId)
+                .then(r => r.json())
+                .then(data => {
+                    if (data.progress) {
+                        // 1. Update the Wave Percentage
+                        let backendPct = data.progress.percent_done || 0;
+                        updateWaveProgress(backendPct);
 
-    function toggleLogs() {
-        const panel = document.getElementById('log-panel');
-        const btn = document.getElementById('log-toggle-btn');
-        logVisible = !logVisible;
-        panel.style.display = logVisible ? '' : 'none';
-        btn.textContent = logVisible ? 'Hide' : 'Show';
-    }
+                        // 2. Update the Steps (e.g., 720 / 30000)
+                        let currentStep = data.progress.current_step || "--";
+                        let totalStep = data.progress.total_steps || "--";
+                        document.getElementById('metric-step').innerText = `${currentStep} / ${totalStep}`;
 
-    function startLogPoll() {
-        if (logPollId) clearInterval(logPollId);
+                        // 3. Update PSNR or Loss
+                        const psnrEl = document.getElementById('metric-psnr');
+                        if (data.progress.psnr) {
+                            psnrEl.innerText = data.progress.psnr.toFixed(2) + " dB";
+                        } else if (data.progress.loss) {
+                            // Backup: Show the Loss value from your logs
+                            psnrEl.innerText = "L: " + data.progress.loss.toFixed(4);
+                        }
+                    }
+                });
+        }
+
+        // --- 5. REAL HARDWARE TELEMETRY ---
+        function fetchHardware() {
+            fetch('/api/hardware')
+                .then(r => r.json())
+                .then(data => {
+                    document.getElementById('cpu-val').innerText = data.cpu_load + '%';
+                    document.getElementById('gpu-val').innerText = data.gpu_load + '%';
+                    document.getElementById('vram-val').innerText = data.vram_used + 'GB / ' + data.vram_total + 'GB';
+                    document.getElementById('vram-fill').style.width = data.vram_percent + '%';
+                    
+                    drawRealCpu(data.cpu_load);
+                    drawRealGpu(data.gpu_load);
+                }).catch(e => console.log("HW API loading..."));
+        }
+
+        function createRealSparkline(canvasId, color, isFilled) {
+            const canvas = document.getElementById(canvasId);
+            const ctx = canvas.getContext('2d');
+            let dataArr = Array(30).fill(0);
+            return function(realValue) {
+                const rect = canvas.getBoundingClientRect();
+                canvas.width = rect.width; canvas.height = rect.height;
+                dataArr.push(realValue); dataArr.shift();
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                ctx.beginPath();
+                const step = canvas.width / (dataArr.length - 1);
+                ctx.moveTo(0, canvas.height - (dataArr[0] / 100) * canvas.height);
+                for (let i = 1; i < dataArr.length; i++) { ctx.lineTo(i * step, canvas.height - (dataArr[i] / 100) * canvas.height); }
+                ctx.strokeStyle = color; ctx.lineWidth = 1.5; ctx.stroke();
+                if (isFilled) { ctx.lineTo(canvas.width, canvas.height); ctx.lineTo(0, canvas.height); ctx.fillStyle = 'rgba(0, 229, 255, 0.15)'; ctx.fill(); }
+            }
+        }
+        
+        const drawRealCpu = createRealSparkline('cpuChart', '#00e5ff', false);
+        const drawRealGpu = createRealSparkline('gpuChart', '#00e5ff', true);
+
+        // --- START ALL INTERVALS ---
+        setInterval(pollMainStatus, 2000); 
+        setInterval(pollLogs, 1500);       
+        setInterval(fetchHardware, 1000);  
+
+        pollMainStatus();
         pollLogs();
-        logPollId = setInterval(pollLogs, 3000);
-    }
-
-    function stopLogPoll() {
-        if (logPollId) { clearInterval(logPollId); logPollId = null; }
-    }
-
-    function pollLogs() {
-        fetch('/api/logs/' + projectId)
-            .then(r => r.json())
-            .then(data => {
-                const lines = data.lines || [];
-                const panel = document.getElementById('log-panel');
-                if (!panel) return;
-
-                // Check if user scrolled up
-                const atBottom = panel.scrollHeight - panel.scrollTop - panel.clientHeight < 40;
-
-                panel.innerHTML = lines.map(l => {
-                    const escaped = l.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-                    return '<div class="log-line">' + escaped + '</div>';
-                }).join('');
-
-                // Auto-scroll to bottom if user was at bottom
-                if (atBottom) panel.scrollTop = panel.scrollHeight;
-
-                // Also update fail log panel if visible
-                const failPanel = document.getElementById('fail-log-panel');
-                if (failPanel && data.status === 'training_failed') {
-                    failPanel.innerHTML = panel.innerHTML;
-                    failPanel.scrollTop = failPanel.scrollHeight;
-                }
-            })
-            .catch(() => {});
-    }
-
-    // --- Main status polling ---
-    let statusPollId = null;
-
-    function pollStatus() {
-        fetch('/api/status/' + projectId)
-            .then(r => r.json())
-            .then(data => {
-                updateUI(data.status);
-
-                if (data.processing_started_at && !processingStartedAt) {
-                    processingStartedAt = new Date(data.processing_started_at);
-                }
-
-                if (data.training_started_at && !trainingStartedAt) {
-                    trainingStartedAt = new Date(data.training_started_at);
-                }
-
-                // Transition: if status just became 'training', start training poll
-                if (data.status === 'training') {
-                    if (!trainingPollId) startTrainingPoll();
-                    clearInterval(statusPollId);
-                }
-
-                // Terminal states for status poll
-                if (['ready_for_training', 'training_complete', 'training_failed', 'failed'].includes(data.status)) {
-                    clearInterval(statusPollId);
-                }
-            });
-    }
-
-    // Initialize
-    updateUI('{{ project.status }}');
-
-    const initStatus = '{{ project.status }}';
-    if (initStatus === 'training') {
-        startTrainingPoll();
-    } else if (!['ready_for_training', 'training_complete', 'training_failed', 'failed'].includes(initStatus)) {
-        statusPollId = setInterval(pollStatus, 3000);
-    }
-    </script>
+        </script>
 </body>
 </html>

@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NECTAR | Neural Extraction and Construction of Three-dimensional Artefact Representations</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+</head>
+<body>
+
+    <header>
+        <div class="main-logo">NECTAR</div>
+        <div class="tagline">Neural Scene Compilation & Reconstruction</div>
+    </header>
+
+    <div class="container">
+        
+        <section class="upload-section project-card">
+            <div class="card-header">
+                <div class="project-title">Initialize New Project</div>
+                <div class="status-badge">Engine: Gaussian Splatting</div>
+            </div>
+            
+            <form action="/upload" method="post" enctype="multipart/form-data" class="upload-form">
+                <div class="file-drop-area">
+                    <span class="file-msg">Drop images/video here or </span>
+                    <input type="file" name="files" multiple class="file-input" id="fileInput">
+                    <label for="fileInput" class="file-label">Browse Files</label>
+                </div>
+                <button type="submit" class="btn-action">Start Neural Compilation</button>
+            </form>
+        </section>
+
+        <hr style="border: 0; border-top: 1px solid var(--border-subtle); margin: 40px 0;">
+
+        <div class="dashboard-header">
+            <h2 class="project-title" style="font-size: 1rem; color: var(--text-dim);">Active Compilations</h2>
+        </div>
+
+        <div class="project-card clearfix">
+            <div class="card-header">
+                <div class="project-title">Static Workspace: Current Training</div>
+                <div class="status-badge">Ready for Viewing</div>
+            </div>
+            <p style="color: var(--text-dim); margin-bottom: 20px;">
+                Pipeline: COLMAP SFM → Gaussian Training → Mesh Reconstruction
+            </p>
+            <a href="/viewer/static_test" class="btn-action">View 3D Reconstruction</a>
+        </div>
+
+    </div>
+
+</body>
+</html>

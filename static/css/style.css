@@ -1,0 +1,264 @@
+/* NECTAR: SIGNAL BLUE - INDUSTRIAL AI THEME
+   Designed for High-Performance Neural Scene Compilation
+*/
+
+:root {
+    --bg-black: #000000;
+    --bg-card: #0a0c10;
+    --accent-blue: #00e5ff; /* Signal Blue */
+    --accent-blue-glow: rgba(0, 229, 255, 0.4);
+    --text-main: #ffffff;
+    --text-dim: #71717a;
+    --border-subtle: rgba(255, 255, 255, 0.05);
+}
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    background-color: var(--bg-black);
+    color: var(--text-main);
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+}
+
+/* --- HEADER SECTION --- */
+header {
+    width: 100%;
+    padding: 80px 0 40px 0;
+    text-align: center;
+    background: radial-gradient(circle at top, #0c151c 0%, #000 70%);
+}
+
+.main-logo {
+    font-size: 4.5rem;
+    font-weight: 900;
+    letter-spacing: 1.5rem;
+    color: var(--accent-blue);
+    text-transform: uppercase;
+    margin-bottom: 8px;
+    filter: drop-shadow(0 0 15px var(--accent-blue-glow));
+}
+
+.tagline {
+    font-size: 0.8rem;
+    font-weight: 500;
+    color: var(--text-dim);
+    letter-spacing: 0.5rem;
+    text-transform: uppercase;
+}
+
+/* --- DASHBOARD CONTAINER --- */
+.container {
+    max-width: 1000px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+/* --- PROJECT CARDS --- */
+.project-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-subtle);
+    border-radius: 2px; /* Sharp, professional corners */
+    padding: 30px;
+    margin-bottom: 24px;
+    position: relative;
+    transition: transform 0.2s ease, border-color 0.2s ease;
+}
+
+.project-card:hover {
+    border-color: var(--accent-blue);
+    transform: translateY(-2px);
+}
+
+.card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    border-bottom: 1px solid var(--border-subtle);
+    padding-bottom: 15px;
+}
+
+.project-title {
+    font-size: 1.3rem;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+}
+
+/* --- STATUS BADGES --- */
+.status-badge {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 0.7rem;
+    font-weight: 700;
+    color: var(--accent-blue);
+    border: 1px solid var(--accent-blue);
+    padding: 4px 12px;
+    border-radius: 2px;
+    background: rgba(0, 229, 255, 0.05);
+}
+
+/* --- ACTION BUTTONS --- */
+.btn-action {
+    display: inline-block;
+    background: var(--accent-blue);
+    color: #000;
+    text-decoration: none;
+    font-weight: 800;
+    font-size: 0.8rem;
+    padding: 12px 24px;
+    border-radius: 2px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    transition: all 0.3s ease;
+    cursor: pointer;
+    border: none;
+    float: right;
+}
+
+.btn-action:hover {
+    box-shadow: 0 0 20px var(--accent-blue-glow);
+    filter: brightness(1.1);
+}
+
+/* --- UTILITY --- */
+.clearfix::after {
+    content: "";
+    clear: both;
+    display: table;
+}
+
+/* --- UPLOADER STYLES --- */
+.upload-form {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.file-drop-area {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    padding: 40px;
+    border: 2px dashed var(--border-subtle);
+    border-radius: 4px;
+    transition: 0.3s;
+    background: rgba(255, 255, 255, 0.02);
+}
+
+.file-drop-area:hover {
+    border-color: var(--accent-blue);
+    background: rgba(0, 229, 255, 0.05);
+}
+
+.file-input {
+    position: absolute;
+    left: 0;
+    top: 0;
+    height: 100%;
+    width: 100%;
+    opacity: 0;
+    cursor: pointer;
+}
+
+.file-label {
+    color: var(--accent-blue);
+    text-decoration: underline;
+    cursor: pointer;
+    margin-left: 5px;
+    font-weight: 700;
+}
+
+.file-msg {
+    color: var(--text-dim);
+    font-size: 0.9rem;
+}
+
+.dashboard-header {
+    margin-bottom: 20px;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+}
+
+/* The Neon Glow Base */
+.main-logo {
+    text-transform: uppercase;
+    font-weight: 900;
+    letter-spacing: 10px;
+    color: var(--accent-blue);
+    text-shadow: 0 0 10px rgba(0, 229, 255, 0.7);
+    transition: text-shadow 0.3s ease, opacity 0.3s ease;
+}
+
+/* The Broken Neon Animation */
+@keyframes neonFlicker {
+    0%, 19%, 21%, 23%, 25%, 54%, 56%, 100% {
+        text-shadow: 0 0 10px rgba(0, 229, 255, 0.7), 0 0 20px rgba(0, 229, 255, 0.3);
+        opacity: 1;
+    }
+    20%, 24%, 55% {
+        text-shadow: none;
+        opacity: 0.3;
+    }
+}
+
+.flicker-active {
+    animation: neonFlicker 3s infinite;
+}
+
+/* --- REPAIR MODE (Only for Status Page) --- */
+/* --- N-to-R REPAIR: Flickering on Unrepaired Part Only --- */
+.main-logo.repair-mode {
+    position: relative;
+    color: rgba(0, 229, 255, 0.1); /* Very dim "broken" base */
+    text-shadow: none;
+    display: inline-block;
+}
+
+/* LAYER 1: The REPAIRED part (Solid glow, NO flicker) */
+.main-logo.repair-mode::after {
+    content: "NECTAR";
+    position: absolute;
+    left: 0; top: 0;
+    width: var(--fill-width, 0%);
+    height: 100%;
+    color: #00e5ff;
+    text-shadow: 0 0 15px #00e5ff, 0 0 30px rgba(0, 229, 255, 0.5);
+    overflow: hidden;
+    white-space: nowrap;
+    transition: width 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+    z-index: 2; /* Sits on top */
+}
+
+/* LAYER 2: The UNREPAIRED part (Flickering glow) */
+/* This layer is only visible where the repair hasn't reached yet */
+.main-logo.repair-mode::before {
+    content: "NECTAR";
+    position: absolute;
+    left: 0; top: 0;
+    width: 100%;
+    height: 100%;
+    color: #00e5ff;
+    text-shadow: 0 0 10px rgba(0, 229, 255, 0.7);
+    overflow: hidden;
+    white-space: nowrap;
+    animation: neonFlicker 3s infinite;
+    z-index: 1; /* Sits behind Layer 1 */
+    
+    /* THE MASK: Transparent on repaired %, Black (Visible) on the rest */
+    -webkit-mask-image: linear-gradient(to right, 
+        transparent var(--fill-width, 0%), 
+        black var(--fill-width, 0%)
+    );
+    mask-image: linear-gradient(to right, 
+        transparent var(--fill-width, 0%), 
+        black var(--fill-width, 0%)
+    );
+}

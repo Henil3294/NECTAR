@@ -1,101 +1,199 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-<meta charset="UTF-8">
-<title>Point Cloud</title>
-<style>
-  body { margin: 0; background: #000; }
-  canvas { display: block; }
-  #info {
-    position: fixed; top: 10px; left: 10px;
-    color: #fff; font: 12px monospace;
-    background: rgba(0,0,0,0.5);
-    padding: 8px; border-radius: 4px;
-    z-index: 10;
-  }
-</style>
+    <meta charset="UTF-8">
+    <title>NECTAR // FINAL RECONSTRUCTION</title>
+    <style>
+        /* --- NECTAR VIEWER STYLES --- */
+        body { 
+            margin: 0; 
+            background: #050505; 
+            overflow: hidden; 
+            font-family: 'Inter', 'Segoe UI', monospace; 
+            color: #00e5ff;
+        }
+
+        #canvas-container {
+            width: 100vw;
+            height: 100vh;
+        }
+
+        /* The Mission Control HUD */
+        .hud-overlay {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            padding: 20px;
+            background: rgba(0, 20, 30, 0.4);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(0, 229, 255, 0.2);
+            border-left: 4px solid #00e5ff;
+            border-radius: 4px;
+            z-index: 100;
+            pointer-events: none;
+        }
+
+        .hud-title {
+            font-size: 1.2rem;
+            font-weight: 900;
+            letter-spacing: 3px;
+            text-transform: uppercase;
+            margin-bottom: 5px;
+            text-shadow: 0 0 10px rgba(0, 229, 255, 0.5);
+        }
+
+        #info-status {
+            font-family: 'Courier New', monospace;
+            font-size: 0.8rem;
+            opacity: 0.9;
+            color: #a0fbff;
+        }
+
+        /* Bottom Action Bar */
+        .action-bar {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            display: flex;
+            gap: 15px;
+            z-index: 100;
+        }
+
+        .btn-nectar {
+            padding: 12px 24px;
+            background: rgba(0, 0, 0, 0.7);
+            border: 1px solid #00e5ff;
+            color: #00e5ff;
+            text-transform: uppercase;
+            font-weight: bold;
+            letter-spacing: 1px;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .btn-nectar:hover {
+            background: #00e5ff;
+            color: #000;
+            box-shadow: 0 0 30px rgba(0, 229, 255, 0.6);
+            transform: translateY(-3px);
+        }
+
+        .nav-hint {
+            position: fixed;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 0.7rem;
+            color: rgba(0, 229, 255, 0.4);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            pointer-events: none;
+            z-index: 100;
+        }
+    </style>
 </head>
 <body>
-<div id="info">Loading...</div>
+    
+    <div class="hud-overlay">
+        <div class="hud-title">NECTAR // RENDER</div>
+        <div id="info-status">SYSTEM INITIALIZING...</div>
+    </div>
 
-<script type="importmap">
-{
-  "imports": {
-    "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
-    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
-  }
-}
-</script>
+    <div class="nav-hint">
+        LMB: ROTATE | RMB: PAN | SCROLL: ZOOM
+    </div>
 
-<script type="module">
-import * as THREE from 'three';
-import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+    <div class="action-bar">
+        <a href="/points/{{ project_id }}" download="NECTAR_{{ project_id }}.ply" style="text-decoration: none;">
+            <button class="btn-nectar" style="border-color: #ffd700; color: #ffd700;">
+                📥 DOWNLOAD .PLY
+            </button>
+        </a>
 
-const scene    = new THREE.Scene();
-const camera   = new THREE.PerspectiveCamera(60, innerWidth/innerHeight, 0.01, 10000);
-const renderer = new THREE.WebGLRenderer();
-renderer.setSize(innerWidth, innerHeight);
-document.body.appendChild(renderer.domElement);
+        <button class="btn-nectar" style="border-color: #fff; color: #fff;" onclick="takeScreenshot()">
+            📷 CAPTURE
+        </button>
+    </div>
 
-const controls = new OrbitControls(camera, renderer.domElement);
-controls.enableDamping = true;
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+            "@mkkellogg/gaussian-splats-3d": "https://unpkg.com/@mkkellogg/gaussian-splats-3d@0.4.7/build/gaussian-splats-3d.module.js"
+        }
+    }
+    </script>
 
-fetch("/points/{{ project_id }}")
-  .then(r => r.json())
-  .then(data => {
-    const pos = new Float32Array(data.length * 3);
-    const col = new Float32Array(data.length * 3);
+    <div class="action-bar">
+        <a href="/points/{{ project_id }}" download="NECTAR_{{ project_id }}.ply" style="text-decoration: none;">
+            <button class="btn-nectar" style="border-color: #ffd700; color: #ffd700;">
+                📥 DOWNLOAD .PLY
+            </button>
+        </a>
+        <button class="btn-nectar" style="border-color: #fff; color: #fff;" onclick="takeScreenshot()">
+            📷 CAPTURE
+        </button>
+    </div>
 
-    data.forEach((p, i) => {
-      pos[i*3]   = p.x; pos[i*3+1] = -p.y; pos[i*3+2] = -p.z;
-      col[i*3]   = p.r/255; col[i*3+1] = p.g/255; col[i*3+2] = p.b/255;
-    });
+    <script type="module">
+    import * as GaussianSplats3D from '@mkkellogg/gaussian-splats-3d';
 
-    const geo = new THREE.BufferGeometry();
-    geo.setAttribute("position", new THREE.BufferAttribute(pos, 3));
-    geo.setAttribute("color",    new THREE.BufferAttribute(col, 3));
-    geo.computeBoundingBox();
+    const statusEl = document.getElementById('info-status');
+    
+    try {
+        // --- STABLE HIGH-FIDELITY INITIALIZATION ---
+        const viewer = new GaussianSplats3D.Viewer({
+            'cameraUp': [0, -1, -0.6],
+            'initialCameraPosition': [-1, -4, 6],
+            'initialCameraLookAt': [0, 4, 0],
+            'sphericalHarmonicsDegree': 2,    // Fixes backside colors
+            'sharedMemoryForWorkers': false,
+            'dynamicScene': true,
+            'integerLayout': false
+        });
 
-    // centre
-    const c = new THREE.Vector3();
-    geo.boundingBox.getCenter(c);
-    geo.translate(-c.x, -c.y, -c.z);
-    geo.computeBoundingBox();
+        statusEl.textContent = "PROJ_ID: {{ project_id }} | SYNCHRONIZING GAUSSIANS...";
 
-    const size = geo.boundingBox.getSize(new THREE.Vector3());
-    const diag = size.length();
+        // --- THE ANTI-STRETCH RASTERIZER ---
+        viewer.addSplatScene(`/points/{{ project_id }}`, {
+            'showLoadingUI': true,
+            'format': GaussianSplats3D.SceneFormat.Ply,
+            'splatAlphaRemovalThreshold': 15, // Cleans background noise
+            'maxSplatSize': 0.012,            // STRETCH FIX: Limits spiky background points
+        })
+        .then(() => {
+            viewer.start();
+            statusEl.innerHTML = "STATUS: NOMINAL // RENDER ACTIVE<br>ENGINE: GAUSSIAN_SPLATTING_V3";
+            
+            // Unlocks far distance safely after startup
+            if(viewer.camera) {
+                viewer.camera.far = 1000;
+                viewer.camera.updateProjectionMatrix();
+            }
+        })
+        .catch(err => {
+            statusEl.textContent = "ERROR: PLY_NOT_FOUND";
+            console.error(err);
+        });
 
-    const points = new THREE.Points(geo, new THREE.PointsMaterial({
-      size: diag * 0.003,
-      vertexColors: true
-    }));
-    scene.add(points);
+        // --- CAPTURE PROTOCOL ---
+        window.takeScreenshot = function() {
+            const canvas = document.querySelector('canvas');
+            if (!canvas) return;
+            const link = document.createElement('a');
+            link.download = `NECTAR_CAPTURE_${new Date().getTime()}.png`;
+            link.href = canvas.toDataURL('image/png');
+            link.click();
+            
+            const originalText = statusEl.innerHTML;
+            statusEl.innerHTML = "<span style='color:#fff;'>IMAGE_CAPTURED</span>";
+            setTimeout(() => { statusEl.innerHTML = originalText; }, 2000);
+        };
 
-    // fit camera
-    camera.position.set(diag, diag * 0.5, diag);
-    camera.near = diag * 0.0001;
-    camera.far  = diag * 100;
-    camera.updateProjectionMatrix();
-    controls.update();
-
-    document.getElementById("info").textContent =
-      `${data.length.toLocaleString()} points | drag=orbit scroll=zoom`;
-  })
-  .catch(err => {
-    document.getElementById("info").textContent = "Error: " + err.message;
-  });
-
-window.addEventListener("resize", () => {
-  camera.aspect = innerWidth/innerHeight;
-  camera.updateProjectionMatrix();
-  renderer.setSize(innerWidth, innerHeight);
-});
-
-(function animate() {
-  requestAnimationFrame(animate);
-  controls.update();
-  renderer.render(scene, camera);
-})();
+    } catch (e) {
+        statusEl.textContent = "CRITICAL: " + e.message;
+        console.error("Critical Failure:", e);
+    }
 </script>
 </body>
 </html>

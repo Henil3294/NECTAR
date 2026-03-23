@@ -8,85 +8,41 @@ from datetime import datetime, timezone
 # Step (% Done)       Train Iter (time)    Train Rays / Sec     Test PSNR            ETA (time)
 # 100 (0.33%)         0.1234s              1.23M                22.1234              1h 2m 30s
 
-STEP_PATTERN = re.compile(
-    r"(\d+)\s+\((\d+\.\d+)%\)"
-)
+# Updated to match: "Training progress: 2% | 720/30000"
+# This stops exactly at the % sign, so it doesn't care if a pipe | or a space follows it.
+STEP_PATTERN = re.compile(r"Training progress:\s*(\d+)%")
 
+# Keep this for general time matching if needed
 ETA_TIME_PATTERN = re.compile(
     r"(?:(\d+)h)?\s*(?:(\d+)m)?\s*(?:(\d+)s)?"
 )
 
 
 def parse_training_line(line):
-    """Parse a nerfstudio stdout training line and extract metrics.
-
-    Returns dict with available metrics, or None if line is not a training step.
-    """
+    """Universal parser for the engine's output."""
     line = _strip_ansi(line).strip()
+    if not line: return None
 
-    if not line:
+    # 1. Find the percentage first (e.g., "4%")
+    pct_match = STEP_PATTERN.search(line)
+    if not pct_match:
         return None
 
-    match = STEP_PATTERN.search(line)
-    if not match:
-        return None
+    percent = float(pct_match.group(1))
 
-    step = int(match.group(1))
-    percent = float(match.group(2))
-
-    # Skip header lines or non-step lines
-    if step == 0 and percent == 0.0:
-        return None
-
+    # 2. Find the step numbers separately (e.g., "1270/30000")
+    step_match = re.search(r"(\d+)/(\d+)", line)
+    
     metrics = {
-        "current_step": step,
         "percent_done": percent,
+        "current_step": int(step_match.group(1)) if step_match else 0,
+        "total_steps": int(step_match.group(2)) if step_match else 0
     }
 
-    # Extract all tokens after the step/percent match
-    rest = line[match.end():]
-    tokens = rest.split()
-
-    for i, token in enumerate(tokens):
-        # Extract time values (e.g., "0.1234s")
-        if token.endswith("s") and not token.endswith("ps"):
-            try:
-                float(token[:-1])
-                # This is train iter time, skip
-                continue
-            except ValueError:
-                pass
-
-        # Extract rays/sec (e.g., "1.57M" or "157K")
-        if token.endswith("M"):
-            try:
-                metrics["rays_per_sec"] = float(token[:-1]) * 1e6
-                continue
-            except ValueError:
-                pass
-        elif token.endswith("K"):
-            try:
-                metrics["rays_per_sec"] = float(token[:-1]) * 1e3
-                continue
-            except ValueError:
-                pass
-
-        # Extract PSNR — a standalone float typically between 5 and 60
-        try:
-            val = float(token)
-            if 5.0 <= val <= 60.0:
-                metrics["psnr"] = val
-                continue
-        except ValueError:
-            pass
-
-    # Extract ETA from the end of the line (e.g., "1h 2m 30s", "45m 10s", "30s")
-    eta_match = re.search(r"(?:(\d+)h)?\s*(?:(\d+)m)?\s*(\d+)s\s*$", line)
-    if eta_match and eta_match.group(3):
-        hours = int(eta_match.group(1)) if eta_match.group(1) else 0
-        minutes = int(eta_match.group(2)) if eta_match.group(2) else 0
-        seconds = int(eta_match.group(3))
-        metrics["eta_seconds"] = hours * 3600 + minutes * 60 + seconds
+    # 3. Find the Loss if it exists
+    loss_match = re.search(r"Loss=([0-9.]+)", line)
+    if loss_match:
+        metrics["loss"] = float(loss_match.group(1))
 
     return metrics
 

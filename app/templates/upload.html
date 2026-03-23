@@ -3,28 +3,61 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Upload - NECTOR</title>
-    <style>
-        body { font-family: sans-serif; max-width: 600px; margin: 60px auto; text-align: center; }
-        #msg { margin-top: 16px; color: #c00; }
-        button:disabled { opacity: 0.5; }
-    </style>
+    <title>NECTAR | Neural Ingestion</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
 </head>
 <body>
-    <h1>NECTOR</h1>
-    <form id="upload-form" enctype="multipart/form-data">
-        <input type="file" name="images" accept="image/*" multiple required>
-        <button type="submit">Upload</button>
-    </form>
-    <div id="msg"></div>
+
+    <header>
+    <div class="main-logo flicker-active">NECTAR</div>
+    <div class="tagline">Neural Extraction and Construction of Three-dimensional Artefact Representations</div>
+</header>
+
+    <div class="container">
+        
+        <section class="project-card">
+            <div class="card-header">
+                <div class="project-title">Initialize New Project</div>
+                <div class="status-badge">Engine: Gaussian Splatting</div>
+            </div>
+            
+            <form id="upload-form" enctype="multipart/form-data" class="upload-form">
+                <div class="file-drop-area" id="drop-area">
+                    <span class="file-msg" id="file-msg">Drop dataset or </span>
+                    <input type="file" name="images" accept="image/*" multiple required class="file-input" id="fileInput">
+                    <label for="fileInput" class="file-label">Browse Files</label>
+                </div>
+                
+                <div id="msg" style="margin-top: 15px; font-family: 'JetBrains Mono'; font-size: 0.8rem; color: #ff4444; text-align: center;"></div>
+
+                <div style="margin-top: 10px; color: var(--text-dim); font-size: 0.75rem; text-align: center;">
+                    * Technical Requirement: Minimum 20 high-quality images.
+                </div>
+
+                <button type="submit" class="btn-action" id="submit-btn" style="width: 100%; margin-top: 20px;">
+                    Start Neural Compilation
+                </button>
+            </form>
+        </section>
+
+        <div style="text-align: center; margin-top: 40px; color: #111;">
+            <p style="font-family: 'JetBrains Mono'; font-size: 0.7rem; letter-spacing: 1px;">
+                HARDWARE: OPTIMIZED FOR NVIDIA GTX 1650 4GB
+            </p>
+        </div>
+    </div>
 
     <script>
     document.getElementById('upload-form').addEventListener('submit', function(e) {
         e.preventDefault();
-        const btn = this.querySelector('button');
+        const btn = document.getElementById('submit-btn');
         const msg = document.getElementById('msg');
+        const fileMsg = document.getElementById('file-msg');
+        
         btn.disabled = true;
-        btn.textContent = 'Uploading...';
+        btn.textContent = 'TRANSMITTING DATA...';
+        btn.style.opacity = '0.5';
         msg.textContent = '';
 
         const formData = new FormData(this);
@@ -32,18 +65,28 @@
             .then(r => r.json())
             .then(data => {
                 if (data.status === 'valid_images') {
+                    // Success: Move to Status Page
                     window.location.href = '/status/' + data.project_id;
                 } else {
-                    msg.textContent = 'Upload failed: need at least 20 valid images (got ' + data.valid_images + '). Please try again.';
+                    // Validation Error (Less than 20 images)
+                    msg.textContent = 'COMPILATION FAILED: Need at least 20 valid images (Received: ' + data.valid_images + ').';
                     btn.disabled = false;
-                    btn.textContent = 'Upload';
+                    btn.textContent = 'Start Neural Compilation';
+                    btn.style.opacity = '1';
                 }
             })
             .catch(err => {
-                msg.textContent = 'Error: ' + err.message;
+                msg.textContent = 'NETWORK ERROR: ' + err.message;
                 btn.disabled = false;
-                btn.textContent = 'Upload';
+                btn.textContent = 'Start Neural Compilation';
+                btn.style.opacity = '1';
             });
+    });
+
+    // Simple visual feedback when files are selected
+    document.getElementById('fileInput').addEventListener('change', function() {
+        const count = this.files.length;
+        document.getElementById('file-msg').textContent = count + " files selected. ";
     });
     </script>
 </body>

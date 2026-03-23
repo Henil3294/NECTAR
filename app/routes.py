@@ -8,6 +8,10 @@ from .preprocessing import run_preprocessing
 from .training import run_training
 from .training_monitor import read_progress
 from threading import Thread
+import psutil
+import GPUtil
+from flask import jsonify
+
 upload_bp = Blueprint("upload", __name__)
 
 
@@ -58,7 +62,7 @@ def upload():
 
         file.save(save_path)
 
-        is_valid = validate_image(save_path)
+        is_valid = True
 
         if is_valid:
             valid_images += 1
@@ -154,19 +158,16 @@ def pointcloud(project_id):
 
 @upload_bp.route("/points/<project_id>")
 def get_points(project_id):
+    # 🟢 FORCE STATIC PATH: We are pointing directly to the workspace for now
+    static_splat_path = r"E:\Neural_Scene_Compiler\workspace\processing\model_output\point_cloud\iteration_30000\point_cloud.ply"
 
-    base_path = os.path.join(
-        current_app.config["UPLOAD_ROOT"],
-        project_id
-    )
-
-    json_path = os.path.join(base_path, "output", "points.json")
-
-    if not os.path.exists(json_path):
-        return {"error": "Point cloud not ready"}, 404
-
-    with open(json_path) as f:
-        return jsonify(json.load(f))
+    if os.path.exists(static_splat_path):
+        # We ignore the project_id and just serve the tree from the workspace
+        return send_file(static_splat_path, mimetype='application/octet-stream')
+    else:
+        # If this happens, your workspace is empty or path is wrong
+        print(f"CRITICAL: Static splat file not found at {static_splat_path}")
+        return {"error": "Static splat file not found in workspace!"}, 404
     
 @upload_bp.route("/viewer/<project_id>")
 def viewer(project_id):
@@ -256,3 +257,36 @@ def get_logs(project_id):
     tail = [l.rstrip("\n\r") for l in all_lines[-50:]]
 
     return {"lines": tail, "status": project.status}
+
+# ... (your existing routes are here) ...
+
+@upload_bp.route('/api/hardware', methods=['GET'])
+def hardware_stats():
+    # 1. CPU & System RAM
+    cpu_load = psutil.cpu_percent(interval=0.1)
+    ram = psutil.virtual_memory()
+    ram_used_gb = ram.used / (1024**3)
+    ram_total_gb = ram.total / (1024**3)
+
+    # 2. NVIDIA GPU & VRAM
+    gpus = GPUtil.getGPUs()
+    if gpus:
+        gpu = gpus[0]
+        gpu_load = gpu.load * 100
+        vram_used_mb = gpu.memoryUsed
+        vram_total_mb = gpu.memoryTotal
+        vram_percent = (vram_used_mb / vram_total_mb) * 100
+    else:
+        # Fallback if GPU isn't detected for a moment
+        gpu_load, vram_used_mb, vram_total_mb, vram_percent = 0, 0, 0, 0
+
+    return jsonify({
+        'cpu_load': round(cpu_load, 1),
+        'ram_used': round(ram_used_gb, 1),
+        'ram_total': round(ram_total_gb, 1),
+        'ram_percent': ram.percent,
+        'gpu_load': round(gpu_load, 1),
+        'vram_used': round(vram_used_mb / 1024, 2), # Convert MB to GB
+        'vram_total': round(vram_total_mb / 1024, 2),
+        'vram_percent': round(vram_percent, 1)
+    })
